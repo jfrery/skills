@@ -29,9 +29,12 @@ The installer symlinks every directory under `skills/` into
 both harnesses at once.
 
 It is safe to re-run. Links that already point here are left alone, and anything
-else sitting at a target path is moved to `<name>.bak.1` rather than deleted. A
-harness directory that does not exist yet is created, so installing before
-Claude Code or Codex is set up still works.
+else sitting at a target path is moved to `../skills-backup/<name>.bak.N` rather
+than deleted. Backups deliberately land beside the skills directory instead of
+inside it, because a harness scans that directory and would otherwise load the
+backup as a second skill with a duplicate name. A harness directory that does
+not exist yet is created, so installing before Claude Code or Codex is set up
+still works.
 
 ## Adding a skill
 

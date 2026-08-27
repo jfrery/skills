@@ -45,13 +45,20 @@ resolve_dir() {
   (cd "$1" 2>/dev/null && pwd -P)
 }
 
-# First unused "<path>.bak.N".
+# Anything displaced goes to a sibling of the harness dir, never inside it: the
+# harness scans its skills directory, so a backup left there would load as a
+# second skill with a duplicate name.
+backup_root_for() {
+  printf '%s/skills-backup\n' "$(dirname "$1")"
+}
+
+# First unused "<root>/<name>.bak.N".
 backup_path() {
-  local base="$1" n=1
-  while [ -e "$base.bak.$n" ] || [ -L "$base.bak.$n" ]; do
+  local root="$1" name="$2" n=1
+  while [ -e "$root/$name.bak.$n" ] || [ -L "$root/$name.bak.$n" ]; do
     n=$((n + 1))
   done
-  printf '%s.bak.%s\n' "$base" "$n"
+  printf '%s/%s.bak.%s\n' "$root" "$name" "$n"
 }
 
 if [ ! -d "$SKILLS_DIR" ]; then
@@ -71,12 +78,14 @@ for harness in "${HARNESSES[@]}"; do
     echo "  creating (harness dir does not exist yet)"
     run mkdir -p "$harness"
   fi
+  backup_root="$(backup_root_for "$harness")"
 
   for src in "$SKILLS_DIR"/*/; do
     [ -d "$src" ] || continue
     src="${src%/}"
     name="$(basename "$src")"
     dest="$harness/$name"
+    displace=""
 
     if [ -L "$dest" ]; then
       if [ ! -e "$dest" ]; then
@@ -87,14 +96,16 @@ for harness in "${HARNESSES[@]}"; do
         already=$((already + 1))
         continue
       else
-        bak="$(backup_path "$dest")"
-        echo "  $name: symlink points elsewhere, moving to $(basename "$bak")"
-        run mv "$dest" "$bak"
-        backed_up=$((backed_up + 1))
+        displace="symlink points elsewhere"
       fi
     elif [ -e "$dest" ]; then
-      bak="$(backup_path "$dest")"
-      echo "  $name: existing copy moved to $(basename "$bak")"
+      displace="existing copy"
+    fi
+
+    if [ -n "$displace" ]; then
+      bak="$(backup_path "$backup_root" "$name")"
+      echo "  $name: $displace, moving to $bak"
+      run mkdir -p "$backup_root"
       run mv "$dest" "$bak"
       backed_up=$((backed_up + 1))
     fi
